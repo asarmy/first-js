@@ -137,3 +137,11 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Custom
+.DS_Store
+
+# Local HTTPS certs
+certs/
+*.pem
+

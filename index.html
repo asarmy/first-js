@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hello World!</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@8.2.0/ol.css">
+  <script src="https://cdn.jsdelivr.net/npm/ol@8.2.0/dist/ol.js"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="map"></div>
+  
+  <div id="search-container">
+    <input type="text" id="search-input" placeholder="Search for address or place..." />
+    <button id="search-btn">Search</button>
+    <button id="clear-btn">Clear</button>
+    <div id="search-results"></div>
+  </div>
+  
+  <div id="info-panel">
+    <button id="close-btn" onclick="closeInfoPanel()">×</button>
+    <h3>Feature Information</h3>
+    <div id="fault-properties"></div>
+  </div>
+  
+  <div id="layer-controls">
+    <h4>Fault Layers</h4>
+    <div class="layer-control-item">
+      <input type="checkbox" id="usgs-checkbox" checked>
+      <div class="color-indicator" style="background-color: red;"></div>
+      <label for="usgs-checkbox">2023 USGS NSHM</label>
+    </div>
+    <div class="layer-control-item">
+      <input type="checkbox" id="ak-checkbox" checked>
+      <div class="color-indicator" style="background-color: orange;"></div>
+      <label for="ak-checkbox">AK</label>
+    </div>
+    <hr style="margin: 10px 0; border: none; border-top: 1px solid #ddd;">
+    <h4>Seismicity</h4>
+    <div class="layer-control-item">
+      <input type="radio" id="no-earthquakes" name="seismicity" checked>
+      <label for="no-earthquakes">None</label>
+    </div>
+    <div class="layer-control-item">
+      <input type="radio" id="earthquakes-7days" name="seismicity">
+      <div class="color-indicator" style="background-color: purple; border-radius: 50%; width: 8px; height: 8px;"></div>
+      <label for="earthquakes-7days">Past 7 Days</label>
+    </div>
+    <div class="layer-control-item">
+      <input type="radio" id="earthquakes-custom" name="seismicity">
+      <div class="color-indicator" style="background-color: purple; border-radius: 50%; width: 8px; height: 8px;"></div>
+      <label for="earthquakes-custom">Custom Date Range</label>
+    </div>
+    <div id="date-range-inputs">
+      <label for="start-date">Start Date & Time:</label>
+      <input type="datetime-local" id="start-date">
+      <label for="end-date">End Date & Time:</label>
+      <input type="datetime-local" id="end-date">
+      <button id="load-custom-btn">Load Earthquakes</button>
+    </div>
+  </div>
+  <script src="js/main.js"></script>
+</body>
+</html>

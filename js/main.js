@@ -39,7 +39,7 @@ const map = new ol.Map({
 });
 
 // Global layer variables for control
-let usgsLayer, akLayer, earthquakeLayer;
+let usgsLayer, akLayer, earthquakeLayer, ucerf31Layer, ucerf32Layer;
 
 // Load USGS fault data using CORS proxy
 fetch('https://corsproxy.io/?https://code.usgs.gov/ghsc/nshmp/nshms/nshm-conus/-/raw/main/active-crust/fault/wus-system/branch-avg/sections.geojson')
@@ -59,7 +59,8 @@ fetch('https://corsproxy.io/?https://code.usgs.gov/ghsc/nshmp/nshms/nshm-conus/-
           color: 'red',
           width: 2
         })
-      })
+      }),
+      zIndex: 1
     });
     
     map.addLayer(usgsLayer);
@@ -92,7 +93,9 @@ fetch('https://corsproxy.io/?https://fault-viewer-v3.arkottke.org/api/faults?lat
             color: 'orange',
             width: 2
           })
-        })
+        }),
+        visible: false,
+        zIndex: 2
       });
       
       map.addLayer(akLayer);
@@ -104,6 +107,62 @@ fetch('https://corsproxy.io/?https://fault-viewer-v3.arkottke.org/api/faults?lat
   .catch(error => {
     console.error('Error loading AK fault data:', error);
   });
+
+// Load UCERF3.1 fault data using CORS proxy
+fetch('https://corsproxy.io/?https://code.usgs.gov/ghsc/nshmp/nshms/nshm-conus/-/raw/5.3-maint/active-crust/fault/CA/ucerf3/fault-model-3.1/sections.geojson')
+  .then(response => response.json())
+  .then(data => {
+    const ucerf31Source = new ol.source.Vector({
+      features: new ol.format.GeoJSON().readFeatures(data, {
+        dataProjection: 'EPSG:4326',
+        featureProjection: 'EPSG:3857'
+      })
+    });
+    
+    ucerf31Layer = new ol.layer.Vector({
+      source: ucerf31Source,
+      style: new ol.style.Style({
+        stroke: new ol.style.Stroke({
+          color: 'dodgerblue',
+          width: 2
+        })
+      }),
+      visible: false,
+      zIndex: 3
+    });
+    
+    map.addLayer(ucerf31Layer);
+    console.log('UCERF3.1 faults loaded:', ucerf31Source.getFeatures().length);
+  })
+  .catch(error => console.error('Error loading UCERF3.1 faults:', error));
+
+// Load UCERF3.2 fault data using CORS proxy
+fetch('https://corsproxy.io/?https://code.usgs.gov/ghsc/nshmp/nshms/nshm-conus/-/raw/5.3-maint/active-crust/fault/CA/ucerf3/fault-model-3.2/sections.geojson')
+  .then(response => response.json())
+  .then(data => {
+    const ucerf32Source = new ol.source.Vector({
+      features: new ol.format.GeoJSON().readFeatures(data, {
+        dataProjection: 'EPSG:4326',
+        featureProjection: 'EPSG:3857'
+      })
+    });
+    
+    ucerf32Layer = new ol.layer.Vector({
+      source: ucerf32Source,
+      style: new ol.style.Style({
+        stroke: new ol.style.Stroke({
+          color: 'forestgreen',
+          width: 2
+        })
+      }),
+      visible: false,
+      zIndex: 4
+    });
+    
+    map.addLayer(ucerf32Layer);
+    console.log('UCERF3.2 faults loaded:', ucerf32Source.getFeatures().length);
+  })
+  .catch(error => console.error('Error loading UCERF3.2 faults:', error));
 
 // Function to load earthquake data
 function loadEarthquakeData(customStartTime = null, customEndTime = null) {
@@ -173,7 +232,24 @@ function showFaultInfo(feature) {
   let tableHTML = '<table>';
   
   for (const [key, value] of Object.entries(properties)) {
-    tableHTML += `<tr><th>${key}</th><td>${value || 'N/A'}</td></tr>`;
+    let displayValue = value || 'N/A';
+    
+    // Format timestamp fields for earthquakes (time and updated fields)
+    if ((key === 'time' || key === 'updated') && value && typeof value === 'number') {
+      const date = new Date(value);
+      displayValue = date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit', 
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZone: 'UTC',
+        timeZoneName: 'short'
+      });
+    }
+    
+    tableHTML += `<tr><th>${key}</th><td>${displayValue}</td></tr>`;
   }
   
   tableHTML += '</table>';
@@ -295,6 +371,18 @@ document.getElementById('usgs-checkbox').addEventListener('change', function(e) 
 document.getElementById('ak-checkbox').addEventListener('change', function(e) {
   if (akLayer) {
     akLayer.setVisible(e.target.checked);
+  }
+});
+
+document.getElementById('ucerf31-checkbox').addEventListener('change', function(e) {
+  if (ucerf31Layer) {
+    ucerf31Layer.setVisible(e.target.checked);
+  }
+});
+
+document.getElementById('ucerf32-checkbox').addEventListener('change', function(e) {
+  if (ucerf32Layer) {
+    ucerf32Layer.setVisible(e.target.checked);
   }
 });
 

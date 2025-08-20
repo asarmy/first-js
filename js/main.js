@@ -1,3 +1,12 @@
+// Layer color configuration
+const LAYER_COLORS = {
+  usgs: 'rgba(255, 0, 0, 0.5)',
+  ucerf31: 'rgba(30, 144, 255, 0.5)',
+  ucerf32: 'rgba(34, 139, 34, 0.5)',
+  ak: 'rgba(255, 165, 0, 0.5)',
+  earthquakes: 'rgba(128, 0, 128, 0.6)'
+};
+
 // Create hillshade layer using USGS National Map
 const hillshadeLayer = new ol.layer.Tile({
   source: new ol.source.XYZ({
@@ -39,7 +48,10 @@ const map = new ol.Map({
 });
 
 // Global layer variables for control
-let usgsLayer, akLayer, earthquakeLayer, ucerf31Layer, ucerf32Layer;
+let usgsLayer, /*akLayer,*/ earthquakeLayer, ucerf31Layer, ucerf32Layer;
+
+// Global variables for earthquake loading
+let earthquakeAbortController = null;
 
 // Load USGS fault data using CORS proxy
 fetch('https://corsproxy.io/?https://code.usgs.gov/ghsc/nshmp/nshms/nshm-conus/-/raw/main/active-crust/fault/wus-system/branch-avg/sections.geojson')
@@ -56,7 +68,7 @@ fetch('https://corsproxy.io/?https://code.usgs.gov/ghsc/nshmp/nshms/nshm-conus/-
       source: vectorSource,
       style: new ol.style.Style({
         stroke: new ol.style.Stroke({
-          color: 'red',
+          color: LAYER_COLORS.usgs,
           width: 2
         })
       }),
@@ -69,6 +81,7 @@ fetch('https://corsproxy.io/?https://code.usgs.gov/ghsc/nshmp/nshms/nshm-conus/-
   .catch(error => console.error('Error loading USGS faults:', error));
 
 // Load AK fault data from fault-viewer API using CORS proxy
+/*
 fetch('https://corsproxy.io/?https://fault-viewer-v3.arkottke.org/api/faults?lat_min=30&lat_max=55&dip_min=0&dip_max=90&type=traces')
   .then(response => {
     console.log('AK fault API response:', response.status);
@@ -107,6 +120,7 @@ fetch('https://corsproxy.io/?https://fault-viewer-v3.arkottke.org/api/faults?lat
   .catch(error => {
     console.error('Error loading AK fault data:', error);
   });
+*/
 
 // Load UCERF3.1 fault data using CORS proxy
 fetch('https://corsproxy.io/?https://code.usgs.gov/ghsc/nshmp/nshms/nshm-conus/-/raw/5.3-maint/active-crust/fault/CA/ucerf3/fault-model-3.1/sections.geojson')
@@ -123,7 +137,7 @@ fetch('https://corsproxy.io/?https://code.usgs.gov/ghsc/nshmp/nshms/nshm-conus/-
       source: ucerf31Source,
       style: new ol.style.Style({
         stroke: new ol.style.Stroke({
-          color: 'dodgerblue',
+          color: LAYER_COLORS.ucerf31,
           width: 2
         })
       }),
@@ -151,8 +165,9 @@ fetch('https://corsproxy.io/?https://code.usgs.gov/ghsc/nshmp/nshms/nshm-conus/-
       source: ucerf32Source,
       style: new ol.style.Style({
         stroke: new ol.style.Stroke({
-          color: 'forestgreen',
-          width: 2
+          color: LAYER_COLORS.ucerf32,
+          width: 2,
+          // lineDash: [5, 5]
         })
       }),
       visible: false,
@@ -164,8 +179,82 @@ fetch('https://corsproxy.io/?https://code.usgs.gov/ghsc/nshmp/nshms/nshm-conus/-
   })
   .catch(error => console.error('Error loading UCERF3.2 faults:', error));
 
+// Function to show loading overlay
+function showLoadingOverlay() {
+  document.getElementById('loading-overlay').style.display = 'flex';
+  document.getElementById('loading-message').textContent = 'Loading earthquakes...';
+  document.getElementById('loading-buttons').style.display = 'none';
+}
+
+// Function to hide loading overlay
+function hideLoadingOverlay() {
+  document.getElementById('loading-overlay').style.display = 'none';
+  document.getElementById('loading-buttons').style.display = 'none';
+}
+
+// Function to setup timeout warning
+function setupTimeoutWarning() {
+  const timeoutId = setTimeout(() => {
+    if (earthquakeAbortController && !earthquakeAbortController.signal.aborted) {
+      console.log('60 seconds elapsed, showing timeout warning');
+      showTimeoutWarning();
+    }
+  }, 60000);
+  
+  // Store timeout ID for cleanup
+  earthquakeAbortController.timeoutId = timeoutId;
+}
+
+// Function to show timeout warning with user choice
+function showTimeoutWarning() {
+  document.getElementById('loading-message').textContent = 'Request is taking longer than expected. Large date ranges may take several minutes.';
+  document.getElementById('loading-buttons').style.display = 'block';
+}
+
+// Function to continue waiting (extend timeout)
+function continueWaiting() {
+  document.getElementById('loading-message').textContent = 'Continuing to load earthquakes...';
+  document.getElementById('loading-buttons').style.display = 'none';
+  
+  // Setup another timeout warning in 120 seconds
+  const extendedTimeoutId = setTimeout(() => {
+    if (earthquakeAbortController && !earthquakeAbortController.signal.aborted) {
+      earthquakeAbortController.timedOut = true; // Flag to track timeout
+      earthquakeAbortController.abort();
+      hideLoadingOverlay();
+      alert('Request took too long. Please try a smaller date range.');
+    }
+  }, 120000);
+  
+  earthquakeAbortController.extendedTimeoutId = extendedTimeoutId;
+}
+
+// Function to cancel earthquake request
+function cancelEarthquakeRequest() {
+  if (earthquakeAbortController) {
+    earthquakeAbortController.userCancelled = true; // Flag to track user cancellation
+    earthquakeAbortController.abort();
+    hideLoadingOverlay();
+  }
+}
+
 // Function to load earthquake data
 function loadEarthquakeData(customStartTime = null, customEndTime = null) {
+  // Cancel any existing request
+  if (earthquakeAbortController) {
+    earthquakeAbortController.abort();
+  }
+  
+  // Create new AbortController for this request
+  earthquakeAbortController = new AbortController();
+  
+  // Show loading overlay only for custom date ranges (which can be slow)
+  const isCustomRange = customStartTime && customEndTime;
+  if (isCustomRange) {
+    showLoadingOverlay();
+    setupTimeoutWarning();
+  }
+  
   if (earthquakeLayer) {
     map.removeLayer(earthquakeLayer);
   }
@@ -176,16 +265,48 @@ function loadEarthquakeData(customStartTime = null, customEndTime = null) {
     // Custom date range using FDSNWS Event Web Service
     apiUrl = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=${customStartTime}&endtime=${customEndTime}`;
     console.log('Loading custom earthquake data:', customStartTime, 'to', customEndTime);
+    console.log('API URL:', apiUrl);
   } else {
     // Past 7 days using feed
     apiUrl = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson';
     console.log('Loading past 7 days earthquake data');
   }
   
-  fetch(apiUrl)
-    .then(response => response.json())
+  fetch(apiUrl, { signal: earthquakeAbortController.signal })
+    .then(response => {
+      console.log('Earthquake API response status:', response.status);
+      if (!response.ok) {
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        if (response.status === 503) {
+          errorMessage = 'USGS server is overloaded. Try a smaller date range or try again later.';
+        } else if (response.status === 400) {
+          errorMessage = 'Invalid request. Check your date range (future dates not allowed) and try again.';
+        } else if (response.status === 500) {
+          errorMessage = 'USGS server error. Please try again later.';
+        }
+        // Don't try to parse JSON for error responses
+        throw new Error(errorMessage);
+      }
+      return response.json();
+    })
     .then(data => {
+      // Clear any active timeouts
+      if (earthquakeAbortController.timeoutId) {
+        clearTimeout(earthquakeAbortController.timeoutId);
+      }
+      if (earthquakeAbortController.extendedTimeoutId) {
+        clearTimeout(earthquakeAbortController.extendedTimeoutId);
+      }
+      hideLoadingOverlay();
+      
       console.log('Earthquake data loaded:', data);
+      console.log('Number of earthquake features:', data.features ? data.features.length : 0);
+      
+      if (!data.features || data.features.length === 0) {
+        console.log('No earthquakes found for the selected date range');
+        alert('No earthquakes found for the selected date range. Try expanding your date range or check if the dates are correct.');
+        return;
+      }
       
       const earthquakeSource = new ol.source.Vector({
         features: new ol.format.GeoJSON().readFeatures(data, {
@@ -204,7 +325,7 @@ function loadEarthquakeData(customStartTime = null, customEndTime = null) {
             image: new ol.style.Circle({
               radius: radius,
               fill: new ol.style.Fill({ 
-                color: 'rgba(128, 0, 128, 0.6)' // Purple with transparency
+                color: LAYER_COLORS.earthquakes
               }),
               stroke: new ol.style.Stroke({ 
                 color: 'purple', 
@@ -220,7 +341,28 @@ function loadEarthquakeData(customStartTime = null, customEndTime = null) {
       console.log('Earthquakes loaded and layer added:', earthquakeSource.getFeatures().length);
     })
     .catch(error => {
+      // Clear any active timeouts
+      if (earthquakeAbortController && earthquakeAbortController.timeoutId) {
+        clearTimeout(earthquakeAbortController.timeoutId);
+      }
+      if (earthquakeAbortController && earthquakeAbortController.extendedTimeoutId) {
+        clearTimeout(earthquakeAbortController.extendedTimeoutId);
+      }
+      hideLoadingOverlay();
+      
+      if (error.name === 'AbortError') {
+        console.log('Earthquake request was cancelled');
+        // Check if it was user cancellation, timeout, or just request cancellation
+        if (earthquakeAbortController && (earthquakeAbortController.userCancelled || earthquakeAbortController.timedOut)) {
+          // Don't show additional error messages for user actions or timeouts
+          return;
+        }
+        // If it's just a regular abort (like switching requests), don't show error
+        return;
+      }
+      
       console.error('Error loading earthquake data:', error);
+      alert(error.message || 'Error loading earthquake data. Please try again.');
     });
 }
 
@@ -368,11 +510,13 @@ document.getElementById('usgs-checkbox').addEventListener('change', function(e) 
   }
 });
 
+/*
 document.getElementById('ak-checkbox').addEventListener('change', function(e) {
   if (akLayer) {
     akLayer.setVisible(e.target.checked);
   }
 });
+*/
 
 document.getElementById('ucerf31-checkbox').addEventListener('change', function(e) {
   if (ucerf31Layer) {
@@ -415,7 +559,11 @@ document.getElementById('earthquakes-custom').addEventListener('change', functio
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 30);
     
-    document.getElementById('end-date').value = endDate.toISOString().slice(0, 16);
+    // Ensure we don't set future dates
+    const now = new Date();
+    const safeEndDate = endDate > now ? now : endDate;
+    
+    document.getElementById('end-date').value = safeEndDate.toISOString().slice(0, 16);
     document.getElementById('start-date').value = startDate.toISOString().slice(0, 16);
   }
 });
@@ -430,18 +578,88 @@ document.getElementById('load-custom-btn').addEventListener('click', function() 
     return;
   }
   
-  if (new Date(startDate) >= new Date(endDate)) {
+  const startDateObj = new Date(startDate);
+  const endDateObj = new Date(endDate);
+  const now = new Date();
+  
+  if (startDateObj >= endDateObj) {
     alert('Start date must be before end date');
     return;
   }
   
+  if (endDateObj > now) {
+    alert('End date cannot be in the future');
+    return;
+  }
+  
+  
   // Convert to ISO format for USGS API
-  const startTime = new Date(startDate).toISOString();
-  const endTime = new Date(endDate).toISOString();
+  const startTime = startDateObj.toISOString();
+  const endTime = endDateObj.toISOString();
   
   console.log('Loading custom earthquake data:', startTime, 'to', endTime);
   loadEarthquakeData(startTime, endTime);
 });
+
+// Function to update legend colors
+function updateLegendColors() {
+  document.querySelector('#usgs-checkbox + .color-indicator').style.backgroundColor = LAYER_COLORS.usgs;
+  document.querySelector('#ucerf31-checkbox + .color-indicator').style.backgroundColor = LAYER_COLORS.ucerf31;
+  document.querySelector('#ucerf32-checkbox + .color-indicator').style.backgroundColor = LAYER_COLORS.ucerf32;
+}
+
+// Function to refresh map while preserving current UI state
+function refreshMap() {
+  console.log('Refreshing map...');
+  
+  // Capture current layer visibility states
+  const layerStates = {
+    usgs: document.getElementById('usgs-checkbox').checked,
+    ucerf31: document.getElementById('ucerf31-checkbox').checked,
+    ucerf32: document.getElementById('ucerf32-checkbox').checked
+  };
+  
+  // Capture current seismicity state
+  const seismicityState = {
+    none: document.getElementById('no-earthquakes').checked,
+    sevenDays: document.getElementById('earthquakes-7days').checked,
+    custom: document.getElementById('earthquakes-custom').checked,
+    startDate: document.getElementById('start-date').value,
+    endDate: document.getElementById('end-date').value
+  };
+  
+  // Force map re-render
+  map.render();
+  
+  // Apply captured layer states
+  if (usgsLayer) usgsLayer.setVisible(layerStates.usgs);
+  if (ucerf31Layer) ucerf31Layer.setVisible(layerStates.ucerf31);
+  if (ucerf32Layer) ucerf32Layer.setVisible(layerStates.ucerf32);
+  
+  // Handle seismicity layer refresh
+  if (seismicityState.sevenDays) {
+    loadEarthquakeData(); // Reload 7 days data
+  } else if (seismicityState.custom && seismicityState.startDate && seismicityState.endDate) {
+    // Reload custom date range
+    const startTime = new Date(seismicityState.startDate).toISOString();
+    const endTime = new Date(seismicityState.endDate).toISOString();
+    loadEarthquakeData(startTime, endTime);
+  } else if (seismicityState.none && earthquakeLayer) {
+    earthquakeLayer.setVisible(false);
+  }
+  
+  console.log('Map refreshed with preserved state');
+}
+
+// Update legend colors on page load
+updateLegendColors();
+
+// Add refresh button event listener
+document.getElementById('refresh-map-btn').addEventListener('click', refreshMap);
+
+// Add loading overlay button event listeners
+document.getElementById('continue-waiting-btn').addEventListener('click', continueWaiting);
+document.getElementById('cancel-request-btn').addEventListener('click', cancelEarthquakeRequest);
 
 // Hide search results when clicking outside
 document.addEventListener('click', function(e) {

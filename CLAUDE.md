@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a JavaScript learning project focused on geological fault trace and seismicity visualization using OpenLayers. It's a simple client-side web application that displays USGS fault data and earthquake information on a 2D map without build tools or complex bundling.
 
+## Code Preservation Rules
+
+**NEVER remove commented-out code.** The codebase contains intentionally commented sections (like AK fault functionality) that must be preserved for future use. Only comment out additional code when explicitly requested - never delete commented blocks.
+
 ## Architecture
 
 ### Core Structure
@@ -27,18 +31,19 @@ This is a JavaScript learning project focused on geological fault trace and seis
 
 - **Base Maps**: USGS National Map hillshade with OpenStreetMap overlay
 - **Fault Datasets**:
-  - 2023 USGS NSHM (red)
-  - UCERF3.1 (blue)
-  - UCERF3.2 (green)
-  - AK fault data (orange)
-- **Seismicity**: USGS earthquake data (past 7 days or custom date range)
+  - 2023 USGS NSHM (red, 50% opacity, 5px width)
+  - UCERF3.1 (blue, 50% opacity)
+  - UCERF3.2 (green, 50% opacity, dashed)
+  - AK fault data (orange, commented out)
+- **Seismicity**: USGS earthquake data with loading overlay and smart timeout
 
 ### Interactive Features
 
-- **Layer Controls**: Toggle fault layers and earthquake data on/off
+- **Layer Controls**: Toggle fault layers and earthquake data with centralized color config
 - **Address Search**: Nominatim-powered location search with blue star markers
 - **Feature Info**: Click on faults/earthquakes to view properties in sidebar
-- **Custom Earthquake Queries**: Date range picker for historical seismicity
+- **Custom Earthquake Queries**: Date range picker with 60s timeout warning and user choice to continue/cancel
+- **Map Refresh**: Button to refresh rendering and reload current layer state
 
 ## Development
 
@@ -66,15 +71,16 @@ Then navigate to `http://localhost:8000`
 
 - **Projections**: Data loaded in EPSG:4326, displayed in EPSG:3857
 - **CORS Handling**: Uses corsproxy.io for cross-origin requests
-- **Styling**: Vector layers with custom colors and stroke widths
+- **Styling**: Centralized color configuration in `LAYER_COLORS` object
 - **Hit Detection**: 10px tolerance for feature clicking
+- **Loading Management**: AbortController with smart timeout handling for slow API requests
 
 ### Current Limitations
 
 - No build system or package management
 - No testing framework or linting tools
 - Relies on external CORS proxy for some data sources
-- Basic error handling for API failures
+- USGS API can be slow/overloaded for large date ranges
 
 ## Future Development Considerations
 

@@ -1,0 +1,17 @@
+// {
+//   "liveServer.settings.https": {
+//     "enable": true,
+//     "cert": "${workspaceFolder}/certs/cert.pem",
+//     "key": "${workspaceFolder}/certs/key.pem",
+//     "passphrase": "",
+//   }
+// }
+
+{
+  "liveServer.settings.https": {
+    "enable": true,
+    "cert": "/Users/alex/dev/first-js/certs/cert.pem",
+    "key": "/Users/alex/dev/first-js/certs/key.pem"
+  }
+}
+

@@ -53,8 +53,8 @@ let usgsLayer, /*akLayer,*/ earthquakeLayer, ucerf31Layer, ucerf32Layer;
 // Global variables for earthquake loading
 let earthquakeAbortController = null;
 
-// Load USGS fault data using CORS proxy
-fetch('https://corsproxy.io/?https://code.usgs.gov/ghsc/nshmp/nshms/nshm-conus/-/raw/main/active-crust/fault/wus-system/branch-avg/sections.geojson')
+// Load USGS fault data from local file
+fetch('data/2023-sections.geojson')
   .then(response => response.json())
   .then(data => {
     const vectorSource = new ol.source.Vector({
@@ -122,8 +122,8 @@ fetch('https://corsproxy.io/?https://fault-viewer-v3.arkottke.org/api/faults?lat
   });
 */
 
-// Load UCERF3.1 fault data using CORS proxy
-fetch('https://corsproxy.io/?https://code.usgs.gov/ghsc/nshmp/nshms/nshm-conus/-/raw/5.3-maint/active-crust/fault/CA/ucerf3/fault-model-3.1/sections.geojson')
+// Load UCERF3.1 fault data from local file
+fetch('data/ucerf31-sections.geojson')
   .then(response => response.json())
   .then(data => {
     const ucerf31Source = new ol.source.Vector({
@@ -150,8 +150,8 @@ fetch('https://corsproxy.io/?https://code.usgs.gov/ghsc/nshmp/nshms/nshm-conus/-
   })
   .catch(error => console.error('Error loading UCERF3.1 faults:', error));
 
-// Load UCERF3.2 fault data using CORS proxy
-fetch('https://corsproxy.io/?https://code.usgs.gov/ghsc/nshmp/nshms/nshm-conus/-/raw/5.3-maint/active-crust/fault/CA/ucerf3/fault-model-3.2/sections.geojson')
+// Load UCERF3.2 fault data from local file
+fetch('data/ucerf32-sections.geojson')
   .then(response => response.json())
   .then(data => {
     const ucerf32Source = new ol.source.Vector({

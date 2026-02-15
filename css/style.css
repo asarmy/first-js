@@ -210,6 +210,86 @@ html, body, #map {
   border-radius: 2px;
 }
 
+/* Scale bar positioned below search container */
+.ol-scale-line {
+  position: absolute;
+  top: 75px;
+  left: 10px;
+  bottom: auto !important;
+  right: auto;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 3px;
+  padding: 2px;
+}
+
+.ol-scale-line-inner {
+  font-size: 14px;
+  border-width: 2px;
+  padding: 3px 8px;
+}
+
+/* Fault search within layer controls */
+#fault-search-container {
+  position: relative;
+  margin-bottom: 10px;
+}
+
+#fault-search-input {
+  width: 100%;
+  padding: 5px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+#fault-search-clear {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 5px 8px;
+  background: #666;
+  color: white;
+  border: none;
+  border-radius: 0 3px 3px 0;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+#fault-search-clear:hover {
+  background: #444;
+}
+
+#fault-search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-top: none;
+  border-radius: 0 0 3px 3px;
+  max-height: 200px;
+  overflow-y: auto;
+  display: none;
+  z-index: 1001;
+}
+
+.fault-search-item {
+  padding: 6px 8px;
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
+  font-size: 11px;
+}
+
+.fault-search-item:hover {
+  background: #f0f0f0;
+}
+
+.fault-search-item:last-child {
+  border-bottom: none;
+}
+
 /* Loading spinner animation */
 @keyframes spin {
   0% { transform: rotate(0deg); }

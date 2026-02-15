@@ -38,6 +38,11 @@
   <div id="layer-controls">
     <button id="refresh-map-btn" style="width: 100%; margin-bottom: 10px; padding: 5px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">🔄 Refresh Map</button>
     <h4>Fault Layers</h4>
+    <div id="fault-search-container">
+      <input type="text" id="fault-search-input" placeholder="Search fault..." />
+      <button id="fault-search-clear">Clear</button>
+      <div id="fault-search-results"></div>
+    </div>
     <div class="layer-control-item">
       <input type="checkbox" id="usgs-checkbox" checked>
       <div class="color-indicator"></div>

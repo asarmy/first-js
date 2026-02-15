@@ -47,6 +47,34 @@ const map = new ol.Map({
   })
 });
 
+// Add scale bar in metric units
+map.addControl(new ol.control.ScaleLine({
+  units: 'metric'
+}));
+
+// Fault name index for search (base names without section numbers)
+const faultNameIndex = { usgs: new Set(), ucerf31: new Set(), ucerf32: new Set() };
+
+// Helper to strip section number: "San Andreas (3)" -> "San Andreas"
+function getBaseFaultName(name) {
+  const match = name.match(/^(.+)\s+\(\d+\)$/);
+  return match ? match[1] : name;
+}
+
+// Create highlight layer for fault search results
+const highlightSource = new ol.source.Vector();
+const highlightLayer = new ol.layer.Vector({
+  source: highlightSource,
+  style: new ol.style.Style({
+    stroke: new ol.style.Stroke({
+      color: 'rgba(255, 255, 0, 0.9)',
+      width: 5
+    })
+  }),
+  zIndex: 100
+});
+map.addLayer(highlightLayer);
+
 // Global layer variables for control
 let usgsLayer, /*akLayer,*/ earthquakeLayer, ucerf31Layer, ucerf32Layer;
 
@@ -76,6 +104,7 @@ fetch('data/2023-sections.geojson')
     });
     
     map.addLayer(usgsLayer);
+    vectorSource.getFeatures().forEach(f => faultNameIndex.usgs.add(getBaseFaultName(f.get('name'))));
     console.log('USGS faults loaded:', vectorSource.getFeatures().length);
   })
   .catch(error => console.error('Error loading USGS faults:', error));
@@ -146,6 +175,7 @@ fetch('data/ucerf31-sections.geojson')
     });
     
     map.addLayer(ucerf31Layer);
+    ucerf31Source.getFeatures().forEach(f => faultNameIndex.ucerf31.add(getBaseFaultName(f.get('name'))));
     console.log('UCERF3.1 faults loaded:', ucerf31Source.getFeatures().length);
   })
   .catch(error => console.error('Error loading UCERF3.1 faults:', error));
@@ -175,6 +205,7 @@ fetch('data/ucerf32-sections.geojson')
     });
     
     map.addLayer(ucerf32Layer);
+    ucerf32Source.getFeatures().forEach(f => faultNameIndex.ucerf32.add(getBaseFaultName(f.get('name'))));
     console.log('UCERF3.2 faults loaded:', ucerf32Source.getFeatures().length);
   })
   .catch(error => console.error('Error loading UCERF3.2 faults:', error));
@@ -661,11 +692,98 @@ document.getElementById('refresh-map-btn').addEventListener('click', refreshMap)
 document.getElementById('continue-waiting-btn').addEventListener('click', continueWaiting);
 document.getElementById('cancel-request-btn').addEventListener('click', cancelEarthquakeRequest);
 
+// Fault search autocomplete
+function getVisibleFaultNames() {
+  const names = new Set();
+  if (usgsLayer && usgsLayer.getVisible()) faultNameIndex.usgs.forEach(n => names.add(n));
+  if (ucerf31Layer && ucerf31Layer.getVisible()) faultNameIndex.ucerf31.forEach(n => names.add(n));
+  if (ucerf32Layer && ucerf32Layer.getVisible()) faultNameIndex.ucerf32.forEach(n => names.add(n));
+  return names;
+}
+
+function getVisibleFaultLayers() {
+  const layers = [];
+  if (usgsLayer && usgsLayer.getVisible()) layers.push(usgsLayer);
+  if (ucerf31Layer && ucerf31Layer.getVisible()) layers.push(ucerf31Layer);
+  if (ucerf32Layer && ucerf32Layer.getVisible()) layers.push(ucerf32Layer);
+  return layers;
+}
+
+document.getElementById('fault-search-input').addEventListener('input', function() {
+  const query = this.value.trim().toLowerCase();
+  const resultsDiv = document.getElementById('fault-search-results');
+
+  if (query.length < 2) {
+    resultsDiv.style.display = 'none';
+    return;
+  }
+
+  const names = getVisibleFaultNames();
+  const matches = [];
+  names.forEach(name => {
+    if (name.toLowerCase().includes(query)) matches.push(name);
+  });
+  matches.sort();
+
+  if (matches.length === 0) {
+    resultsDiv.innerHTML = '<div class="fault-search-item">No matching faults</div>';
+    resultsDiv.style.display = 'block';
+    return;
+  }
+
+  resultsDiv.innerHTML = '';
+  matches.slice(0, 10).forEach(name => {
+    const div = document.createElement('div');
+    div.className = 'fault-search-item';
+    div.textContent = name;
+    div.addEventListener('click', function() {
+      highlightFault(name);
+      document.getElementById('fault-search-input').value = name;
+      resultsDiv.style.display = 'none';
+    });
+    resultsDiv.appendChild(div);
+  });
+  resultsDiv.style.display = 'block';
+});
+
+function highlightFault(baseName) {
+  highlightSource.clear();
+
+  const layers = getVisibleFaultLayers();
+  const extent = ol.extent.createEmpty();
+
+  layers.forEach(layer => {
+    layer.getSource().getFeatures().forEach(feature => {
+      if (getBaseFaultName(feature.get('name')) === baseName) {
+        const clone = feature.clone();
+        highlightSource.addFeature(clone);
+        ol.extent.extend(extent, feature.getGeometry().getExtent());
+      }
+    });
+  });
+
+  if (highlightSource.getFeatures().length > 0) {
+    map.getView().fit(extent, { padding: [50, 50, 50, 50], duration: 1000 });
+  }
+}
+
+function clearFaultHighlight() {
+  highlightSource.clear();
+  document.getElementById('fault-search-input').value = '';
+  document.getElementById('fault-search-results').style.display = 'none';
+}
+
+document.getElementById('fault-search-clear').addEventListener('click', clearFaultHighlight);
+
 // Hide search results when clicking outside
 document.addEventListener('click', function(e) {
   const searchContainer = document.getElementById('search-container');
   if (!searchContainer.contains(e.target)) {
     document.getElementById('search-results').style.display = 'none';
+  }
+  const faultSearchContainer = document.getElementById('fault-search-container');
+  if (!faultSearchContainer.contains(e.target)) {
+    document.getElementById('fault-search-results').style.display = 'none';
   }
 });
 
